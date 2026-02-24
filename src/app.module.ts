@@ -1,10 +1,25 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { databaseConfig } from './database/config';
+import { UsersModule } from './users/users.module';
+import { LocationsModule } from './locations/locations.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    ConfigModule.forRoot({ 
+      isGlobal: true,
+      envFilePath: '.env.local', 
+    }),
+
+    SequelizeModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (config: ConfigService) => databaseConfig(config),
+      inject: [ConfigService],
+    }),
+
+    UsersModule,
+    LocationsModule,
+  ],
 })
 export class AppModule {}
