@@ -2,15 +2,15 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsTimeZone } from 'class-validator';
 
 export class CreateLocationDto {
-  @ApiProperty({ example: 'Downtown Branch' })
+  @ApiProperty({ example: 'Coastal Eats Nairobi' })
   @IsString()
   name: string;
 
-  @ApiProperty({ example: '123 Main St, New York, NY' })
+  @ApiProperty({ example: 'Westlands, Nairobi, Kenya' })
   @IsString()
   address: string;
 
-  @ApiProperty({ example: 'America/New_York' })
+  @ApiProperty({ example: 'Africa/Nairobi' })
   @IsTimeZone()
   timezone: string;
 }
