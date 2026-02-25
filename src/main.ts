@@ -23,6 +23,7 @@ async function bootstrap() {
     .setTitle('ShiftSync API')
     .setDescription('Staff scheduling platform API')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

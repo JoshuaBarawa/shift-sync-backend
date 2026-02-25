@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Location } from './location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
 import { User } from '../users/entities/user.entity';
-import { CreateLocationDto } from './create-location.dto';
+import { CreateLocationDto } from './dto/create-location.dto';
 
 @Injectable()
 export class LocationsService {

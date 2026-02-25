@@ -6,9 +6,12 @@ import { UserLocation } from '../users/entities/user-location.entity';
 import { User } from '../users/entities/user.entity';
 import { LocationsService } from './locations.service';
 import { LocationsController } from './locations.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Location, UserLocation, User])],
+  imports: [SequelizeModule.forFeature([Location, UserLocation, User]),
+  AuthModule
+  ],
   controllers: [LocationsController],
   providers: [LocationsService],
   exports: [LocationsService],

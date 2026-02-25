@@ -1,4 +1,4 @@
-// jwt.guard.ts
+
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -18,23 +18,34 @@ export class JwtGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     const authHeader = request.headers.authorization;
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('No token provided');
+      throw new UnauthorizedException('Bearer token is required');
     }
 
     const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      throw new UnauthorizedException('Bearer token is required');
+    }
 
     try {
       const payload = this.jwtService.verify(token, {
         secret: this.config.getOrThrow<string>('JWT_SECRET'),
       });
 
-      const user = await this.userModel.findOne({ where: { id: payload.sub, isActive: true } });
-      if (!user) throw new UnauthorizedException('User not found');
+      const user = await this.userModel.findOne({
+        where: { id: payload.sub, isActive: true },
+      });
 
-      request.user = user; // attach user to request
+      if (!user) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      request.user = user;
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

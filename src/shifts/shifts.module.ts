@@ -9,11 +9,13 @@ import { UserLocation } from '../users/entities/user-location.entity';
 import { ShiftsService } from './shifts.service';
 import { ShiftsController } from './shifts.controller';
 import { AvailabilityModule } from '../availability/availability.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([Shift, ShiftAssignment, User, Location, UserLocation]),
     AvailabilityModule,
+    AuthModule,
   ],
   controllers: [ShiftsController],
   providers: [ShiftsService],
