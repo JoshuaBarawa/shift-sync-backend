@@ -2,8 +2,8 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LocationsService } from './locations.service';
-import { CreateLocationDto } from './dto/create-location.dto';
-import { CertifyUserDto } from './dto/certify-user.dto';
+import { CreateLocationDto } from './dtos/create-location.dto';
+import { CertifyUserDto } from './dtos/certify-user.dto';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User, Role } from '../users/entities/user.entity';

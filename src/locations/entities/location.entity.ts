@@ -1,8 +1,8 @@
 // location.entity.ts
 import { Table, Column, Model, DataType, BelongsToMany } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
-import { User } from '../users/entities/user.entity';
-import { UserLocation } from '../users/entities/user-location.entity';
+import { User } from '../../users/entities/user.entity';
+import { UserLocation } from '../../users/entities/user-location.entity';
 
 @Table({ tableName: 'locations', timestamps: true })
 export class Location extends Model<InferAttributes<Location>, InferCreationAttributes<Location>> {
@@ -23,5 +23,5 @@ export class Location extends Model<InferAttributes<Location>, InferCreationAttr
   declare isActive: CreationOptional<boolean>;
 
   @BelongsToMany(() => User, () => UserLocation)
-  declare certifiedUsers: User[];
+  declare certifiedUsers: CreationOptional<User[]>;
 }

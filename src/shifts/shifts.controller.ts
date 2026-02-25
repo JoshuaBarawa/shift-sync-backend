@@ -2,8 +2,8 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ShiftsService } from './shifts.service';
-import { CreateShiftDto } from './create-shift.dto';
-import { AssignStaffDto } from './assign-staff.dto';
+import { CreateShiftDto } from './dtos/create-shift.dto';
+import { AssignStaffDto } from './dtos/assign-staff.dto';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User, Role } from '../users/entities/user.entity';

@@ -1,7 +1,7 @@
-// create-availability.dto.ts
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
-import { DayOfWeek } from '../availability.entity';
+import { DayOfWeek } from '../entities/availability.entity';
 
 export class CreateAvailabilityDto {
   @ApiProperty({ enum: DayOfWeek, example: DayOfWeek.MONDAY })

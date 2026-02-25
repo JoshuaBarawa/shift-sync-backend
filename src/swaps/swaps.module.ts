@@ -1,9 +1,9 @@
 // swaps.module.ts
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { SwapRequest } from './swap-request.entity';
-import { Shift } from '../shifts/shift.entity';
-import { ShiftAssignment } from '../shifts/shift-assignment.entity';
+import { SwapRequest } from './entities/swap-request.entity';
+import { Shift } from '../shifts/entities/shift.entity';
+import { ShiftAssignment } from '../shifts/entities/shift-assignment.entity';
 import { SwapsService } from './swaps.service';
 import { SwapsController } from './swaps.controller';
 import { AuthModule } from '../auth/auth.module';

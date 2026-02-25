@@ -1,7 +1,7 @@
 // create-swap.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { SwapType } from './swap-request.entity';
+import { SwapType } from '../entities/swap-request.entity';
 
 export class CreateSwapDto {
   @ApiProperty({ enum: SwapType, example: SwapType.SWAP })

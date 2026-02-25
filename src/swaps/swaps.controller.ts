@@ -2,9 +2,9 @@
 import { Controller, Get, Post, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SwapsService } from './swaps.service';
-import { CreateSwapDto } from './create-swap.dto';
-import { RejectDto } from './reject.dto';
-import { SwapStatus } from './swap-request.entity';
+import { CreateSwapDto } from './dtos/create-swap.dto';
+import { RejectDto } from './dtos/reject.dto';
+import { SwapStatus } from './entities/swap-request.entity';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User, Role } from '../users/entities/user.entity';

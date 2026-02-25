@@ -1,14 +1,14 @@
-// database.config.ts
+
 import { ConfigService } from '@nestjs/config';
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 import { User } from '../users/entities/user.entity';
-import { Location } from '../locations/location.entity';
+import { Location } from '../locations/entities/location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
-import { Availability } from '../availability/availability.entity';
-import { AvailabilityException } from '../availability/availability-exception.entity';
-import { Shift } from '../shifts/shift.entity';
-import { ShiftAssignment } from '../shifts/shift-assignment.entity';
-import { SwapRequest } from '../swaps/swap-request.entity';
+import { Availability } from '../availability/entities/availability.entity';
+import { AvailabilityException } from '../availability/entities/availability-exception.entity';
+import { Shift } from '../shifts/entities/shift.entity';
+import { ShiftAssignment } from '../shifts/entities/shift-assignment.entity';
+import { SwapRequest } from '../swaps/entities/swap-request.entity';
 
 export const databaseConfig = (config: ConfigService): SequelizeModuleOptions => ({
   dialect: 'mysql',

@@ -2,7 +2,7 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 import { User } from '../../users/entities/user.entity';
-import { Location } from '../../locations/location.entity';
+import { Location } from '../../locations/entities/location.entity';
 
 @Table({ tableName: 'user_locations', timestamps: true })
 export class UserLocation extends Model<

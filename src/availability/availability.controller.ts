@@ -2,8 +2,8 @@
 import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AvailabilityService } from './availability.service';
-import { CreateAvailabilityDto } from './dto/create-availability.dto';
-import { CreateAvailabilityExceptionDto } from './dto/create-availability-exception.dto';
+import { CreateAvailabilityDto } from './dtos/create-availability.dto';
+import { CreateAvailabilityExceptionDto } from './dtos/create-availability-exception.dto';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User, Role } from '../users/entities/user.entity';

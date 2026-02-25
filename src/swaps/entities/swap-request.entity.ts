@@ -1,8 +1,8 @@
 // swap-request.entity.ts
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
-import { User } from '../users/entities/user.entity';
-import { Shift } from '../shifts/shift.entity';
+import { User } from '../../users/entities/user.entity';
+import { Shift } from '../../shifts/entities/shift.entity';
 
 export enum SwapType {
   SWAP = 'swap',

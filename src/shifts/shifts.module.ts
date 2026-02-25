@@ -1,10 +1,10 @@
 // shifts.module.ts
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Shift } from './shift.entity';
-import { ShiftAssignment } from './shift-assignment.entity';
+import { Shift } from './entities/shift.entity';
+import { ShiftAssignment } from './entities/shift-assignment.entity';
 import { User } from '../users/entities/user.entity';
-import { Location } from '../locations/location.entity';
+import { Location } from '../locations/entities/location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
 import { ShiftsService } from './shifts.service';
 import { ShiftsController } from './shifts.controller';

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Availability } from './availability.entity';
-import { AvailabilityException } from './availability-exception.entity';
+import { Availability } from './entities/availability.entity';
+import { AvailabilityException } from './entities/availability-exception.entity';
 import { User } from '../users/entities/user.entity'; 
 import { AvailabilityService } from './availability.service';
 import { AvailabilityController } from './availability.controller';

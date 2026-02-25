@@ -2,14 +2,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
-import { Shift, ShiftStatus } from './shift.entity';
-import { ShiftAssignment } from './shift-assignment.entity';
+import { Shift, ShiftStatus } from './entities/shift.entity';
+import { ShiftAssignment } from './entities/shift-assignment.entity';
 import { User } from '../users/entities/user.entity';
-import { Location } from '../locations/location.entity';
+import { Location } from '../locations/entities/location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
 import { AvailabilityService } from '../availability/availability.service';
-import { CreateShiftDto } from './create-shift.dto';
-import { AssignStaffDto } from './assign-staff.dto';
+import { CreateShiftDto } from './dtos/create-shift.dto';
+import { AssignStaffDto } from './dtos/assign-staff.dto';
 
 @Injectable()
 export class ShiftsService {

@@ -1,7 +1,7 @@
 // availability.entity.ts
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
-import { User } from '../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum DayOfWeek {
   SUNDAY = 0,

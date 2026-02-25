@@ -1,10 +1,10 @@
 // locations.service.ts
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Location } from './location.entity';
+import { Location } from './entities/location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
 import { User } from '../users/entities/user.entity';
-import { CreateLocationDto } from './dto/create-location.dto';
+import { CreateLocationDto } from './dtos/create-location.dto';
 
 @Injectable()
 export class LocationsService {

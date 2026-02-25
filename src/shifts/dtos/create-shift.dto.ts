@@ -1,7 +1,7 @@
 // create-shift.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
-import { RequiredSkill } from './shift.entity';
+import { RequiredSkill } from '../entities/shift.entity';
 
 export class CreateShiftDto {
   @ApiProperty({ example: 1 })

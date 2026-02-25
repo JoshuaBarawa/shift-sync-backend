@@ -1,10 +1,10 @@
 // availability.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Availability } from './availability.entity';
-import { AvailabilityException } from './availability-exception.entity';
-import { CreateAvailabilityDto } from './dto/create-availability.dto';
-import { CreateAvailabilityExceptionDto } from './dto/create-availability-exception.dto';
+import { Availability } from './entities/availability.entity';
+import { AvailabilityException } from './entities/availability-exception.entity';
+import { CreateAvailabilityDto } from './dtos/create-availability.dto';
+import { CreateAvailabilityExceptionDto } from './dtos/create-availability-exception.dto';
 
 @Injectable()
 export class AvailabilityService {

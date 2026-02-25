@@ -1,7 +1,7 @@
 // user.entity.ts
 import { Table, Column, Model, DataType, BelongsToMany } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
-import { Location } from '../../locations/location.entity';
+import { Location } from '../../locations/entities/location.entity';
 import { UserLocation } from './user-location.entity';
 
 export enum Role {
@@ -43,5 +43,5 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare isActive: CreationOptional<boolean>;
 
   @BelongsToMany(() => Location, () => UserLocation)
-  declare certifiedLocations: Location[];
+  declare certifiedLocations: CreationOptional<Location[]>;
 }

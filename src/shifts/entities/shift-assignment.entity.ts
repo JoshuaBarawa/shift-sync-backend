@@ -2,7 +2,7 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import { Shift } from './shift.entity';
-import { User } from '../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Table({ tableName: 'shift_assignments', timestamps: true })
 export class ShiftAssignment extends Model<

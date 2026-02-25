@@ -2,12 +2,12 @@
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
-import { SwapRequest, SwapStatus, SwapType } from './swap-request.entity';
-import { Shift } from '../shifts/shift.entity';
-import { ShiftAssignment } from '../shifts/shift-assignment.entity';
+import { SwapRequest, SwapStatus, SwapType } from './entities/swap-request.entity';
+import { Shift } from '../shifts/entities/shift.entity';
+import { ShiftAssignment } from '../shifts/entities/shift-assignment.entity';
 import { User } from '../users/entities/user.entity';
-import { CreateSwapDto } from './create-swap.dto';
-import { RejectDto } from './reject.dto';
+import { CreateSwapDto } from './dtos/create-swap.dto';
+import { RejectDto } from './dtos/reject.dto';
 
 const MAX_PENDING_REQUESTS = 3;
 
