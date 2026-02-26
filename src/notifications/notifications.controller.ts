@@ -1,4 +1,3 @@
-// notifications.controller.ts
 import { Controller, Get, Patch, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';

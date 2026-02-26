@@ -1,4 +1,3 @@
-// shift.entity.ts
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import { Location } from '../../locations/entities/location.entity';

@@ -1,4 +1,3 @@
-// shifts.service.ts
 import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
@@ -9,6 +8,8 @@ import { Location } from '../locations/entities/location.entity';
 import { UserLocation } from '../users/entities/user-location.entity';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 import { SwapsService } from '../swaps/swaps.service';
 import { CreateShiftDto } from './dtos/create-shift.dto';
 import { AssignStaffDto } from './dtos/assign-staff.dto';
@@ -34,6 +35,7 @@ export class ShiftsService {
 
     private readonly availabilityService: AvailabilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
 
     @Inject(forwardRef(() => SwapsService))
     private readonly swapsService: SwapsService,
@@ -43,9 +45,20 @@ export class ShiftsService {
   // SHIFTS CRUD
   // -----------------------------------------------
 
-  async create(dto: CreateShiftDto): Promise<Shift> {
+  async create(dto: CreateShiftDto, performedById: number): Promise<Shift> {
     const isPremium = this.checkIfPremium(dto.date, dto.startTime);
     const shift = await this.shiftModel.create({ ...dto, isPremium } as any);
+
+    await this.auditService.log(
+      performedById,
+      AuditAction.SHIFT_CREATED,
+      'shift',
+      shift.id,
+      `Shift created at location ${dto.locationId} on ${dto.date} (${dto.startTime}-${dto.endTime})`,
+      undefined,
+      { ...dto, isPremium },
+    );
+
     return this.findOne(shift.id);
   }
 
@@ -68,71 +81,94 @@ export class ShiftsService {
     return shift;
   }
 
-  async update(id: number, dto: Partial<CreateShiftDto>): Promise<Shift> {
+  async update(id: number, dto: Partial<CreateShiftDto>, performedById: number): Promise<Shift> {
     const shift = await this.findOne(id);
     if (shift.status === ShiftStatus.PUBLISHED) {
       throw new BadRequestException('Cannot edit a published shift. Unpublish it first.');
     }
+
+    const before = shift.toJSON();
     await shift.update(dto);
 
-    // Notify all assigned staff that the shift was edited
-    const assignments = await this.assignmentModel.findAll({ where: { shiftId: id } });
-    const assignedUserIds = assignments.map((a) => a.userId);
-    if (assignedUserIds.length > 0) {
-      await this.notificationsService.notifyShiftEdited(
-        assignedUserIds,
-        id,
-        shift.location?.name ?? 'your location',
-        shift.date,
-      );
-    }
-
-    // Auto-cancel any pending swap requests for this shift
-    await this.swapsService.cancelPendingSwapsForShift(id);
-
-    return this.findOne(id);
-  }
-
-  async remove(id: number): Promise<void> {
-    const shift = await this.findOne(id);
+    await this.auditService.log(
+      performedById,
+      AuditAction.SHIFT_UPDATED,
+      'shift',
+      id,
+      `Shift #${id} updated on ${shift.date}`,
+      before,
+      { ...before, ...dto },
+    );
 
     // Notify assigned staff
     const assignments = await this.assignmentModel.findAll({ where: { shiftId: id } });
     const assignedUserIds = assignments.map((a) => a.userId);
     if (assignedUserIds.length > 0) {
-      await this.notificationsService.notifyShiftCancelled(
-        assignedUserIds,
-        id,
-        shift.location?.name ?? 'your location',
-        shift.date,
-      );
+      await this.notificationsService.notifyShiftEdited(assignedUserIds, id, shift.location?.name ?? 'your location', shift.date);
     }
 
-    await shift.update({ status: ShiftStatus.CANCELLED });
+    // Auto-cancel pending swaps
+    await this.swapsService.cancelPendingSwapsForShift(id);
+
+    return this.findOne(id);
   }
 
-  async publish(id: number): Promise<Shift> {
+  async remove(id: number, performedById: number): Promise<void> {
     const shift = await this.findOne(id);
-    await shift.update({ status: ShiftStatus.PUBLISHED });
+    const before = shift.toJSON();
 
-    // Notify all assigned staff
     const assignments = await this.assignmentModel.findAll({ where: { shiftId: id } });
     const assignedUserIds = assignments.map((a) => a.userId);
     if (assignedUserIds.length > 0) {
-      await this.notificationsService.notifyShiftPublished(
-        assignedUserIds,
-        id,
-        shift.location?.name ?? 'your location',
-        shift.date,
-      );
+      await this.notificationsService.notifyShiftCancelled(assignedUserIds, id, shift.location?.name ?? 'your location', shift.date);
+    }
+
+    await shift.update({ status: ShiftStatus.CANCELLED });
+
+    await this.auditService.log(
+      performedById,
+      AuditAction.SHIFT_CANCELLED,
+      'shift',
+      id,
+      `Shift #${id} on ${shift.date} was cancelled`,
+      before,
+      { status: ShiftStatus.CANCELLED },
+    );
+  }
+
+  async publish(id: number, performedById: number): Promise<Shift> {
+    const shift = await this.findOne(id);
+    await shift.update({ status: ShiftStatus.PUBLISHED });
+
+    await this.auditService.log(
+      performedById,
+      AuditAction.SHIFT_PUBLISHED,
+      'shift',
+      id,
+      `Shift #${id} on ${shift.date} was published`,
+    );
+
+    const assignments = await this.assignmentModel.findAll({ where: { shiftId: id } });
+    const assignedUserIds = assignments.map((a) => a.userId);
+    if (assignedUserIds.length > 0) {
+      await this.notificationsService.notifyShiftPublished(assignedUserIds, id, shift.location?.name ?? 'your location', shift.date);
     }
 
     return this.findOne(id);
   }
 
-  async unpublish(id: number): Promise<Shift> {
+  async unpublish(id: number, performedById: number): Promise<Shift> {
     const shift = await this.findOne(id);
     await shift.update({ status: ShiftStatus.DRAFT });
+
+    await this.auditService.log(
+      performedById,
+      AuditAction.SHIFT_UNPUBLISHED,
+      'shift',
+      id,
+      `Shift #${id} on ${shift.date} was unpublished`,
+    );
+
     return this.findOne(id);
   }
 
@@ -140,7 +176,7 @@ export class ShiftsService {
   // ASSIGN STAFF
   // -----------------------------------------------
 
-  async assignStaff(shiftId: number, dto: AssignStaffDto): Promise<{
+  async assignStaff(shiftId: number, dto: AssignStaffDto, performedById: number): Promise<{
     success: boolean;
     message: string;
     warning?: string;
@@ -167,23 +203,14 @@ export class ShiftsService {
     }
 
     // 3. Availability
-    const availability = await this.availabilityService.isUserAvailable(
-      dto.userId, shift.date, shift.startTime, shift.endTime,
-    );
+    const availability = await this.availabilityService.isUserAvailable(dto.userId, shift.date, shift.startTime, shift.endTime);
     if (!availability.available) {
       return { success: false, message: availability.reason ?? 'Staff is not available' };
     }
 
     // 4. Double booking
     const overlapping = await this.assignmentModel.findOne({
-      include: [{
-        model: Shift,
-        where: {
-          date: shift.date,
-          id: { [Op.ne]: shiftId },
-          status: { [Op.ne]: ShiftStatus.CANCELLED },
-        },
-      }],
+      include: [{ model: Shift, where: { date: shift.date, id: { [Op.ne]: shiftId }, status: { [Op.ne]: ShiftStatus.CANCELLED } } }],
       where: { userId: dto.userId },
     });
     if (overlapping) {
@@ -211,10 +238,7 @@ export class ShiftsService {
     // 8. Daily hours
     const shiftHours = this.calcHours(shift.startTime, shift.endTime);
     if (shiftHours > DAILY_BLOCK_HOURS) {
-      return {
-        success: false,
-        message: `This shift is ${shiftHours} hours long which exceeds the maximum ${DAILY_BLOCK_HOURS} hours per day`,
-      };
+      return { success: false, message: `This shift is ${shiftHours} hours long which exceeds the maximum ${DAILY_BLOCK_HOURS} hours per day` };
     }
 
     // 9. Weekly overtime check
@@ -223,18 +247,20 @@ export class ShiftsService {
       return { success: false, message: overtimeResult.message };
     }
 
-    // All checks passed — create assignment
+    // All clear — assign
     const assignment = await this.assignmentModel.create({ shiftId, userId: dto.userId } as any);
 
-    // Notify the staff member
-    await this.notificationsService.notifyShiftAssigned(
-      dto.userId,
+    await this.auditService.log(
+      performedById,
+      AuditAction.STAFF_ASSIGNED,
+      'shift',
       shiftId,
-      shift.location?.name ?? 'your location',
-      shift.date,
-      shift.startTime,
-      shift.endTime,
+      `${user.name} was assigned to shift #${shiftId} on ${shift.date}`,
+      undefined,
+      { userId: dto.userId, shiftId },
     );
+
+    await this.notificationsService.notifyShiftAssigned(dto.userId, shiftId, shift.location?.name ?? 'your location', shift.date, shift.startTime, shift.endTime);
 
     return {
       success: true,
@@ -244,33 +270,30 @@ export class ShiftsService {
     };
   }
 
-  async unassignStaff(shiftId: number, userId: number): Promise<void> {
+  async unassignStaff(shiftId: number, userId: number, performedById: number): Promise<void> {
     const shift = await this.findOne(shiftId);
     const assignment = await this.assignmentModel.findOne({ where: { shiftId, userId } });
     if (!assignment) throw new NotFoundException('Assignment not found');
+
+    const user = await this.userModel.findOne({ where: { id: userId } });
     await assignment.destroy();
 
-    // Notify the staff member
-    await this.notificationsService.notifyShiftUnassigned(
-      userId,
+    await this.auditService.log(
+      performedById,
+      AuditAction.STAFF_UNASSIGNED,
+      'shift',
       shiftId,
-      shift.location?.name ?? 'your location',
-      shift.date,
+      `${user?.name ?? `User #${userId}`} was unassigned from shift #${shiftId} on ${shift.date}`,
     );
+
+    await this.notificationsService.notifyShiftUnassigned(userId, shiftId, shift.location?.name ?? 'your location', shift.date);
   }
 
   // -----------------------------------------------
   // WEEKLY HOURS SUMMARY
   // -----------------------------------------------
 
-  async getWeeklyHours(userId: number, weekStartDate: string): Promise<{
-    userId: number;
-    weekStart: string;
-    weekEnd: string;
-    totalHours: number;
-    shifts: { date: string; startTime: string; endTime: string; hours: number; locationName: string }[];
-    status: 'safe' | 'warning' | 'overtime';
-  }> {
+  async getWeeklyHours(userId: number, weekStartDate: string) {
     const weekStart = new Date(weekStartDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
@@ -280,28 +303,20 @@ export class ShiftsService {
       include: [{
         model: Shift,
         where: {
-          date: {
-            [Op.between]: [
-              weekStart.toISOString().split('T')[0],
-              weekEnd.toISOString().split('T')[0],
-            ],
-          },
+          date: { [Op.between]: [weekStart.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]] },
           status: { [Op.ne]: ShiftStatus.CANCELLED },
         },
         include: [Location],
       }],
     });
 
-    const shifts = assignments.map((a) => {
-      const s = a.shift;
-      return {
-        date: s.date,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        hours: this.calcHours(s.startTime, s.endTime),
-        locationName: s.location?.name ?? 'Unknown',
-      };
-    });
+    const shifts = assignments.map((a) => ({
+      date: a.shift.date,
+      startTime: a.shift.startTime,
+      endTime: a.shift.endTime,
+      hours: this.calcHours(a.shift.startTime, a.shift.endTime),
+      locationName: a.shift.location?.name ?? 'Unknown',
+    }));
 
     const totalHours = shifts.reduce((sum, s) => sum + s.hours, 0);
     let status: 'safe' | 'warning' | 'overtime' = 'safe';
@@ -322,18 +337,11 @@ export class ShiftsService {
   // QUALIFIED STAFF FINDER
   // -----------------------------------------------
 
-  async findQualifiedStaff(shiftId: number): Promise<{
-    available: User[];
-    unavailable: { user: User; reason: string }[];
-  }> {
+  async findQualifiedStaff(shiftId: number) {
     const shift = await this.findOne(shiftId);
 
     const certifiedUsers = await this.userModel.findAll({
-      include: [{
-        model: Location,
-        where: { id: shift.locationId },
-        through: { attributes: [] },
-      }],
+      include: [{ model: Location, where: { id: shift.locationId }, through: { attributes: [] } }],
       where: { isActive: true },
     });
 
@@ -347,24 +355,14 @@ export class ShiftsService {
 
       const avail = await this.availabilityService.isUserAvailable(user.id, shift.date, shift.startTime, shift.endTime);
       const doubleBooked = await this.assignmentModel.findOne({
-        include: [{
-          model: Shift,
-          where: {
-            date: shift.date,
-            id: { [Op.ne]: shiftId },
-            status: { [Op.ne]: ShiftStatus.CANCELLED },
-          },
-        }],
+        include: [{ model: Shift, where: { date: shift.date, id: { [Op.ne]: shiftId }, status: { [Op.ne]: ShiftStatus.CANCELLED } } }],
         where: { userId: user.id },
       });
 
       if (avail.available && !doubleBooked) {
         available.push(user);
       } else {
-        unavailable.push({
-          user,
-          reason: doubleBooked ? 'Already assigned to another shift' : avail.reason ?? 'Unavailable',
-        });
+        unavailable.push({ user, reason: doubleBooked ? 'Already assigned to another shift' : avail.reason ?? 'Unavailable' });
       }
     }
 
@@ -375,11 +373,7 @@ export class ShiftsService {
   // HELPERS
   // -----------------------------------------------
 
-  private async checkWeeklyHours(userId: number, date: string, newShiftHours: number, userName?: string): Promise<{
-    block: boolean;
-    warning: boolean;
-    message: string;
-  }> {
+  private async checkWeeklyHours(userId: number, date: string, newShiftHours: number, userName?: string) {
     const d = new Date(date);
     const day = d.getDay();
     const monday = new Date(d);
@@ -392,12 +386,7 @@ export class ShiftsService {
       include: [{
         model: Shift,
         where: {
-          date: {
-            [Op.between]: [
-              monday.toISOString().split('T')[0],
-              sunday.toISOString().split('T')[0],
-            ],
-          },
+          date: { [Op.between]: [monday.toISOString().split('T')[0], sunday.toISOString().split('T')[0]] },
           status: { [Op.ne]: ShiftStatus.CANCELLED },
         },
       }],
@@ -408,16 +397,14 @@ export class ShiftsService {
 
     if (projectedHours > OVERTIME_BLOCK_HOURS) {
       return {
-        block: true,
-        warning: false,
+        block: true, warning: false,
         message: `This assignment would put ${this.formatHours(projectedHours)} on the schedule this week, exceeding the ${OVERTIME_BLOCK_HOURS}hr limit. Current hours: ${this.formatHours(existingHours)}`,
       };
     }
 
     if (projectedHours >= OVERTIME_WARNING_HOURS) {
       return {
-        block: false,
-        warning: true,
+        block: false, warning: true,
         message: `⚠️ Warning: This assignment brings ${userName ?? 'this staff member'} to ${this.formatHours(projectedHours)} this week (overtime threshold: ${OVERTIME_BLOCK_HOURS}hrs)`,
       };
     }
@@ -439,12 +426,7 @@ export class ShiftsService {
         where: {
           id: { [Op.ne]: excludeShiftId },
           status: { [Op.ne]: ShiftStatus.CANCELLED },
-          date: {
-            [Op.between]: [
-              dayBefore.toISOString().split('T')[0],
-              dayAfter.toISOString().split('T')[0],
-            ],
-          },
+          date: { [Op.between]: [dayBefore.toISOString().split('T')[0], dayAfter.toISOString().split('T')[0]] },
         },
       }],
     });

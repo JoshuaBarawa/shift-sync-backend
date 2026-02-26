@@ -1,4 +1,3 @@
-// create-availability-exception.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsDateString, IsOptional, IsString, Matches } from 'class-validator';
 

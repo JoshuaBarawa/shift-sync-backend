@@ -1,4 +1,3 @@
-// location.entity.ts
 import { Table, Column, Model, DataType, BelongsToMany } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import { User } from '../../users/entities/user.entity';

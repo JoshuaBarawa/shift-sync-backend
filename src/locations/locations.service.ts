@@ -1,4 +1,3 @@
-// locations.service.ts
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Location } from './entities/location.entity';

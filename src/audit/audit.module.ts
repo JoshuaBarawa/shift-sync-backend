@@ -1,4 +1,3 @@
-// audit.module.ts
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AuditLog } from './entities/audit-log.entity';

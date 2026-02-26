@@ -1,4 +1,3 @@
-// notifications.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Notification, NotificationType } from './entities/notification.entity';

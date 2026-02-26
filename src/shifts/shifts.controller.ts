@@ -1,4 +1,3 @@
-
 import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ShiftsService } from './shifts.service';
@@ -15,90 +14,26 @@ import { User, Role } from '../users/entities/user.entity';
 export class ShiftsController {
   constructor(private readonly shiftsService: ShiftsService) {}
 
-  // --- Manager/Admin only ---
-
   @Post()
   @ApiOperation({ summary: 'Create a shift — Manager/Admin only' })
   create(@Body() dto: CreateShiftDto, @CurrentUser() user: User) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can create shifts' };
-    }
-    return this.shiftsService.create(dto);
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can create shifts' };
+    return this.shiftsService.create(dto, user.id);
   }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a shift — Manager/Admin only' })
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: Partial<CreateShiftDto>,
-    @CurrentUser() user: User,
-  ) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can edit shifts' };
-    }
-    return this.shiftsService.update(id, dto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Cancel a shift — Manager/Admin only' })
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can cancel shifts' };
-    }
-    return this.shiftsService.remove(id);
-  }
-
-  @Patch(':id/publish')
-  @ApiOperation({ summary: 'Publish a shift — Manager/Admin only' })
-  publish(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can publish shifts' };
-    }
-    return this.shiftsService.publish(id);
-  }
-
-  @Patch(':id/unpublish')
-  @ApiOperation({ summary: 'Unpublish a shift — Manager/Admin only' })
-  unpublish(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can unpublish shifts' };
-    }
-    return this.shiftsService.unpublish(id);
-  }
-
-  @Post(':id/assign')
-  @ApiOperation({ summary: 'Assign staff to a shift — returns warning if approaching overtime' })
-  assignStaff(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AssignStaffDto,
-    @CurrentUser() user: User,
-  ) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can assign staff' };
-    }
-    return this.shiftsService.assignStaff(id, dto);
-  }
-
-  @Delete(':id/assign/:userId')
-  @ApiOperation({ summary: 'Unassign staff from a shift — Manager/Admin only' })
-  unassignStaff(
-    @Param('id', ParseIntPipe) id: number,
-    @Param('userId', ParseIntPipe) userId: number,
-    @CurrentUser() user: User,
-  ) {
-    if (user.role === Role.STAFF) {
-      return { success: false, message: 'Only managers and admins can unassign staff' };
-    }
-    return this.shiftsService.unassignStaff(id, userId);
-  }
-
-  // --- Any logged in user ---
 
   @Get()
   @ApiOperation({ summary: 'Get all shifts — optionally filter by location' })
   @ApiQuery({ name: 'locationId', required: false, type: Number })
   findAll(@Query('locationId') locationId?: number) {
     return this.shiftsService.findAll(locationId);
+  }
+
+  @Get('hours/weekly')
+  @ApiOperation({ summary: 'Get weekly hours for a staff member — overtime dashboard' })
+  @ApiQuery({ name: 'userId', required: true, type: Number })
+  @ApiQuery({ name: 'weekStartDate', required: true, type: String, description: 'Monday e.g. 2026-03-02' })
+  getWeeklyHours(@Query('userId') userId: number, @Query('weekStartDate') weekStartDate: string) {
+    return this.shiftsService.getWeeklyHours(userId, weekStartDate);
   }
 
   @Get(':id')
@@ -113,14 +48,49 @@ export class ShiftsController {
     return this.shiftsService.findQualifiedStaff(id);
   }
 
-  @Get('hours/weekly')
-  @ApiOperation({ summary: 'Get weekly hours for a staff member — overtime dashboard' })
-  @ApiQuery({ name: 'userId', required: true, type: Number })
-  @ApiQuery({ name: 'weekStartDate', required: true, type: String, description: 'Monday of the week e.g. 2026-03-02' })
-  getWeeklyHours(
-    @Query('userId') userId: number,
-    @Query('weekStartDate') weekStartDate: string,
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a shift — Manager/Admin only' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateShiftDto>, @CurrentUser() user: User) {
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can edit shifts' };
+    return this.shiftsService.update(id, dto, user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Cancel a shift — Manager/Admin only' })
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can cancel shifts' };
+    return this.shiftsService.remove(id, user.id);
+  }
+
+  @Patch(':id/publish')
+  @ApiOperation({ summary: 'Publish a shift — Manager/Admin only' })
+  publish(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can publish shifts' };
+    return this.shiftsService.publish(id, user.id);
+  }
+
+  @Patch(':id/unpublish')
+  @ApiOperation({ summary: 'Unpublish a shift — Manager/Admin only' })
+  unpublish(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can unpublish shifts' };
+    return this.shiftsService.unpublish(id, user.id);
+  }
+
+  @Post(':id/assign')
+  @ApiOperation({ summary: 'Assign staff to a shift — Manager/Admin only' })
+  assignStaff(@Param('id', ParseIntPipe) id: number, @Body() dto: AssignStaffDto, @CurrentUser() user: User) {
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can assign staff' };
+    return this.shiftsService.assignStaff(id, dto, user.id);
+  }
+
+  @Delete(':id/assign/:userId')
+  @ApiOperation({ summary: 'Unassign staff from a shift — Manager/Admin only' })
+  unassignStaff(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @CurrentUser() user: User,
   ) {
-    return this.shiftsService.getWeeklyHours(userId, weekStartDate);
+    if (user.role === Role.STAFF) return { success: false, message: 'Only managers and admins can unassign staff' };
+    return this.shiftsService.unassignStaff(id, userId, user.id);
   }
 }

@@ -1,4 +1,3 @@
-// shift-assignment.entity.ts
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import { Shift } from './shift.entity';
