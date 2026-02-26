@@ -12,6 +12,6 @@ import { AuthModule } from '../auth/auth.module';
 ],
   controllers: [AvailabilityController],
   providers: [AvailabilityService],
-  exports: [AvailabilityService], // exported so shifts module can use it
+  exports: [AvailabilityService],
 })
 export class AvailabilityModule {}

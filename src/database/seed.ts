@@ -28,7 +28,7 @@ const sequelize = new Sequelize({
 async function seed() {
   await sequelize.authenticate();
   await sequelize.sync({ force: true });
-  console.log('✅ Database connected and synced');
+  console.log('Database connected and synced');
 
   const password = await bcrypt.hash('password123', 10);
 
@@ -64,7 +64,6 @@ async function seed() {
     skills: [],
   } as any);
 
-  // Staff with different skills
   const bob = await User.create({
     name: 'Bob Otieno',
     email: 'bob@coastaleats.com',
@@ -121,7 +120,7 @@ async function seed() {
     skills: [Skill.DISHWASHER, Skill.BUSSER],
   } as any);
 
-  console.log('✅ Users created');
+  console.log('Users created');
 
   await UserLocation.bulkCreate([
 
@@ -145,7 +144,7 @@ async function seed() {
     { userId: managerCapeTown.id, locationId: capeTownVA.id },
     { userId: managerCapeTown.id, locationId: capeTownGardens.id },
   ] as any);
-  console.log('✅ Certifications created');
+  console.log('Certifications created');
 
   const staffUsers = [bob, carol, james, sarah, mike, linda, tom];
   const availabilityRecords: any[] = [];
@@ -172,7 +171,7 @@ async function seed() {
   }
 
   await Availability.bulkCreate(availabilityRecords);
-  console.log('✅ Availability created');
+  console.log('Availability created');
   const dates = {
     mon1: '2026-03-02',
     tue1: '2026-03-03',
@@ -211,7 +210,7 @@ async function seed() {
     { locationId: nairobiCBD.id, date: dates.sat2, startTime: '09:00', endTime: '15:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.DRAFT, isPremium: false },
   ] as any);
 
-  console.log('✅ Shifts created');
+  console.log('Shifts created');
 
 
   await ShiftAssignment.bulkCreate([
@@ -236,7 +235,7 @@ async function seed() {
     { shiftId: shifts[13].id, userId: mike.id },
     { shiftId: shifts[14].id, userId: sarah.id },
   ] as any);
-  console.log('✅ Assignments created');
+  console.log('Assignments created');
 
   await SwapRequest.bulkCreate([
     {
@@ -258,7 +257,7 @@ async function seed() {
       expiresAt: new Date('2026-03-13T17:00:00'),
     },
   ] as any);
-  console.log('✅ Swap requests created');
+  console.log('Swap requests created');
 
   console.log('\n🎉 Seed complete! Login credentials:\n');
   console.log('Admin:           admin@coastaleats.com   / password123');

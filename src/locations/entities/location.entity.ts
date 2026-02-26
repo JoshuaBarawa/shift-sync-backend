@@ -14,7 +14,7 @@ export class Location extends Model<InferAttributes<Location>, InferCreationAttr
   @Column({ type: DataType.STRING, allowNull: false })
   declare address: string;
 
-  // IANA timezone string e.g. 'Africa/Nairobi', 'Africa/Johannesburg'
+  // timezone string e.g. 'Africa/Nairobi', 'Africa/Johannesburg'
   @Column({ type: DataType.STRING, allowNull: false })
   declare timezone: string;
 

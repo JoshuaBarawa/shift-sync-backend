@@ -15,10 +15,7 @@ export class AvailabilityService {
     private readonly exceptionModel: typeof AvailabilityException,
   ) {}
 
-  // --- Recurring Availability ---
-
   async setAvailability(userId: number, dto: CreateAvailabilityDto): Promise<Availability> {
-    // If a record already exists for this user + day, update it
     const existing = await this.availabilityModel.findOne({
       where: { userId, dayOfWeek: dto.dayOfWeek },
     });
@@ -43,10 +40,8 @@ export class AvailabilityService {
     await record.destroy();
   }
 
-  // --- Exceptions ---
 
   async addException(userId: number, dto: CreateAvailabilityExceptionDto): Promise<AvailabilityException> {
-    // If exception already exists for this user + date, update it
     const existing = await this.exceptionModel.findOne({
       where: { userId, date: dto.date },
     });
@@ -71,10 +66,9 @@ export class AvailabilityService {
     await record.destroy();
   }
 
-  // --- Used by constraint engine in shifts ---
 
   async isUserAvailable(userId: number, date: string, startTime: string, endTime: string): Promise<{ available: boolean; reason?: string }> {
-    // 1. Check exceptions first — they override everything
+  
     const exception = await this.exceptionModel.findOne({
       where: { userId, date },
     });
@@ -83,7 +77,6 @@ export class AvailabilityService {
       if (!exception.isAvailable) {
         return { available: false, reason: exception.reason ?? 'Staff marked unavailable for this date' };
       }
-      // Available with specific hours
       if (exception.startTime && exception.endTime) {
         const covers = exception.startTime <= startTime && exception.endTime >= endTime;
         if (!covers) {
@@ -93,7 +86,6 @@ export class AvailabilityService {
       return { available: true };
     }
 
-    // 2. Fall back to recurring availability for that day of week
     const dayOfWeek = new Date(date).getDay();
     const recurring = await this.availabilityModel.findOne({
       where: { userId, dayOfWeek },

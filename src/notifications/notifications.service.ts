@@ -9,7 +9,6 @@ export class NotificationsService {
     private readonly notificationModel: typeof Notification,
   ) {}
 
-  // --- Core method — everything calls this ---
 
   async notify(
     userId: number,
@@ -29,7 +28,6 @@ export class NotificationsService {
     } as any);
   }
 
-  // --- Get notifications for a user ---
 
   async getUserNotifications(userId: number): Promise<Notification[]> {
     return this.notificationModel.findAll({
@@ -45,8 +43,6 @@ export class NotificationsService {
     return { count };
   }
 
-  // --- Mark as read ---
-
   async markAsRead(id: number, userId: number): Promise<void> {
     await this.notificationModel.update(
       { isRead: true },
@@ -61,7 +57,6 @@ export class NotificationsService {
     );
   }
 
-  // --- Convenience methods called by other services ---
 
   async notifyShiftAssigned(userId: number, shiftId: number, locationName: string, date: string, startTime: string, endTime: string): Promise<void> {
     await this.notify(

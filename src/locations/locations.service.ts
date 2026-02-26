@@ -45,7 +45,6 @@ export class LocationsService {
     await location.update({ isActive: false });
   }
 
-  // --- Certifications ---
 
   async certifyUser(locationId: number, userId: number): Promise<{ message: string }> {
     const location = await this.locationModel.findOne({ where: { id: locationId } });

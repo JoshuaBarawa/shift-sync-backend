@@ -27,7 +27,6 @@ export class Notification extends Model<
   @Column({ type: DataType.INTEGER, primaryKey: true, autoIncrement: true })
   declare id: CreationOptional<number>;
 
-  // who receives this notification
   @ForeignKey(() => User)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare userId: number;
@@ -47,10 +46,9 @@ export class Notification extends Model<
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
   declare isRead: CreationOptional<boolean>;
 
-  // optional reference to the related resource
   @Column({ type: DataType.INTEGER, allowNull: true })
-  declare resourceId: CreationOptional<number>; // shiftId or swapId
+  declare resourceId: CreationOptional<number>;
 
   @Column({ type: DataType.STRING, allowNull: true })
-  declare resourceType: CreationOptional<string>; // 'shift' or 'swap'
+  declare resourceType: CreationOptional<string>;
 }
