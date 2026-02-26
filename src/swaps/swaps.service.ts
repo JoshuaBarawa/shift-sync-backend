@@ -6,6 +6,7 @@ import { SwapRequest, SwapStatus, SwapType } from './entities/swap-request.entit
 import { Shift } from '../shifts/entities/shift.entity';
 import { ShiftAssignment } from '../shifts/entities/shift-assignment.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSwapDto } from './dtos/create-swap.dto';
 import { RejectDto } from './dtos/reject.dto';
 
@@ -22,12 +23,19 @@ export class SwapsService {
 
     @InjectModel(ShiftAssignment)
     private readonly assignmentModel: typeof ShiftAssignment,
+
+    @InjectModel(User)
+    private readonly userModel: typeof User,
+
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  // --- Create a swap or drop request ---
+  // -----------------------------------------------
+  // CREATE
+  // -----------------------------------------------
 
   async create(requesterId: number, dto: CreateSwapDto): Promise<SwapRequest> {
-    // 1. Check max pending requests
+    // 1. Max 3 pending requests
     const pendingCount = await this.swapModel.count({
       where: {
         requesterId,
@@ -38,32 +46,28 @@ export class SwapsService {
       throw new BadRequestException(`You cannot have more than ${MAX_PENDING_REQUESTS} pending requests at once`);
     }
 
-    // 2. Make sure requester is actually assigned to that shift
+    // 2. Requester must be assigned to the shift
     const assignment = await this.assignmentModel.findOne({
       where: { shiftId: dto.requesterShiftId, userId: requesterId },
     });
-    if (!assignment) {
-      throw new BadRequestException('You are not assigned to this shift');
-    }
+    if (!assignment) throw new BadRequestException('You are not assigned to this shift');
 
     const requesterShift = await this.shiftModel.findOne({ where: { id: dto.requesterShiftId } });
     if (!requesterShift) throw new NotFoundException('Shift not found');
 
+    const requester = await this.userModel.findOne({ where: { id: requesterId } });
+
     if (dto.type === SwapType.SWAP) {
-      // Swap-specific validations
       if (!dto.requesteeId || !dto.requesteeShiftId) {
         throw new BadRequestException('Swap requests require requesteeId and requesteeShiftId');
       }
 
-      // Make sure Staff B is assigned to their shift
       const requesteeAssignment = await this.assignmentModel.findOne({
         where: { shiftId: dto.requesteeShiftId, userId: dto.requesteeId },
       });
-      if (!requesteeAssignment) {
-        throw new BadRequestException('Staff B is not assigned to that shift');
-      }
+      if (!requesteeAssignment) throw new BadRequestException('Staff B is not assigned to that shift');
 
-      return this.swapModel.create({
+      const swap = await this.swapModel.create({
         type: SwapType.SWAP,
         status: SwapStatus.PENDING_ACCEPTANCE,
         requesterId,
@@ -72,12 +76,26 @@ export class SwapsService {
         requesteeShiftId: dto.requesteeShiftId,
         reason: dto.reason,
       } as any);
+
+      // Notify Staff B
+      await this.notificationsService.notifySwapRequested(
+        dto.requesteeId,
+        swap.id,
+        requester?.name ?? 'A colleague',
+      );
+
+      return swap;
     }
 
-    // DROP request
-    // Expires 24 hours before the shift starts
+    // DROP — expires 24hrs before shift
     const shiftDateTime = new Date(`${requesterShift.date}T${requesterShift.startTime}`);
     const expiresAt = new Date(shiftDateTime.getTime() - 24 * 60 * 60 * 1000);
+
+    // Block if less than 24hrs until shift
+    const hoursUntilShift = (shiftDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    if (hoursUntilShift < 24) {
+      throw new BadRequestException('Cannot drop a shift less than 24 hours before it starts');
+    }
 
     return this.swapModel.create({
       type: SwapType.DROP,
@@ -89,16 +107,15 @@ export class SwapsService {
     } as any);
   }
 
-  // --- Get all swap requests ---
+  // -----------------------------------------------
+  // READ
+  // -----------------------------------------------
 
   async findAll(userId?: number, status?: SwapStatus): Promise<SwapRequest[]> {
     const where: any = {};
     if (status) where.status = status;
     if (userId) {
-      where[Op.or as any] = [
-        { requesterId: userId },
-        { requesteeId: userId },
-      ];
+      where[Op.or as any] = [{ requesterId: userId }, { requesteeId: userId }];
     }
 
     return this.swapModel.findAll({
@@ -127,59 +144,85 @@ export class SwapsService {
     return swap;
   }
 
-  // --- Staff B accepts a swap ---
+  // -----------------------------------------------
+  // STAFF ACTIONS
+  // -----------------------------------------------
 
   async accept(swapId: number, userId: number): Promise<SwapRequest> {
     const swap = await this.findOne(swapId);
 
-    if (swap.requesteeId !== userId) {
-      throw new ForbiddenException('Only the requestee can accept this swap');
-    }
+    if (swap.requesteeId !== userId) throw new ForbiddenException('Only the requestee can accept this swap');
     if (swap.status !== SwapStatus.PENDING_ACCEPTANCE) {
       throw new BadRequestException(`Cannot accept a request with status: ${swap.status}`);
     }
 
     await swap.update({ status: SwapStatus.PENDING_APPROVAL });
+
+    // Notify Staff A
+    const requestee = await this.userModel.findOne({ where: { id: userId } });
+    await this.notificationsService.notifySwapAccepted(
+      swap.requesterId,
+      swapId,
+      requestee?.name ?? 'Your colleague',
+    );
+
     return this.findOne(swapId);
   }
 
-  // --- Staff B picks up a drop ---
+  async decline(swapId: number, userId: number, dto: RejectDto): Promise<SwapRequest> {
+    const swap = await this.findOne(swapId);
+
+    if (swap.requesteeId !== userId) throw new ForbiddenException('Only the requestee can decline this swap');
+    if (swap.status !== SwapStatus.PENDING_ACCEPTANCE) {
+      throw new BadRequestException(`Cannot decline a request with status: ${swap.status}`);
+    }
+
+    await swap.update({ status: SwapStatus.REJECTED, rejectionReason: dto.reason });
+
+    // Notify Staff A
+    const requestee = await this.userModel.findOne({ where: { id: userId } });
+    await this.notificationsService.notifySwapDeclined(
+      swap.requesterId,
+      swapId,
+      requestee?.name ?? 'Your colleague',
+      dto.reason,
+    );
+
+    return this.findOne(swapId);
+  }
 
   async pickup(swapId: number, userId: number): Promise<SwapRequest> {
     const swap = await this.findOne(swapId);
 
-    if (swap.type !== SwapType.DROP) {
-      throw new BadRequestException('This is not a drop request');
-    }
+    if (swap.type !== SwapType.DROP) throw new BadRequestException('This is not a drop request');
     if (swap.status !== SwapStatus.OPEN) {
       throw new BadRequestException(`This drop request is no longer open (status: ${swap.status})`);
     }
-    if (swap.requesterId === userId) {
-      throw new BadRequestException('You cannot pick up your own drop request');
-    }
+    if (swap.requesterId === userId) throw new BadRequestException('You cannot pick up your own drop request');
 
-    // Check if expired
+    // Check expiry
     if (swap.expiresAt && new Date() > swap.expiresAt) {
       await swap.update({ status: SwapStatus.EXPIRED });
       throw new BadRequestException('This drop request has expired');
     }
 
-    await swap.update({
-      requesteeId: userId,
-      status: SwapStatus.PENDING_APPROVAL,
-    });
+    await swap.update({ requesteeId: userId, status: SwapStatus.PENDING_APPROVAL });
+
+    // Notify original requester
+    const picker = await this.userModel.findOne({ where: { id: userId } });
+    await this.notificationsService.notifyDropPickedUp(
+      swap.requesterId,
+      swapId,
+      picker?.name ?? 'A colleague',
+    );
+
     return this.findOne(swapId);
   }
-
-  // --- Staff A or B rejects/cancels ---
 
   async cancel(swapId: number, userId: number): Promise<SwapRequest> {
     const swap = await this.findOne(swapId);
 
-    // Only requester can cancel
-    if (swap.requesterId !== userId) {
-      throw new ForbiddenException('Only the requester can cancel this request');
-    }
+    if (swap.requesterId !== userId) throw new ForbiddenException('Only the requester can cancel this request');
 
     const cancellableStatuses = [SwapStatus.PENDING_ACCEPTANCE, SwapStatus.OPEN, SwapStatus.PENDING_APPROVAL];
     if (!cancellableStatuses.includes(swap.status)) {
@@ -190,23 +233,9 @@ export class SwapsService {
     return this.findOne(swapId);
   }
 
-  // --- Staff B declines a swap ---
-
-  async decline(swapId: number, userId: number, dto: RejectDto): Promise<SwapRequest> {
-    const swap = await this.findOne(swapId);
-
-    if (swap.requesteeId !== userId) {
-      throw new ForbiddenException('Only the requestee can decline this swap');
-    }
-    if (swap.status !== SwapStatus.PENDING_ACCEPTANCE) {
-      throw new BadRequestException(`Cannot decline a request with status: ${swap.status}`);
-    }
-
-    await swap.update({ status: SwapStatus.REJECTED, rejectionReason: dto.reason });
-    return this.findOne(swapId);
-  }
-
-  // --- Manager approves ---
+  // -----------------------------------------------
+  // MANAGER ACTIONS
+  // -----------------------------------------------
 
   async approve(swapId: number, managerId: number): Promise<SwapRequest> {
     const swap = await this.findOne(swapId);
@@ -215,9 +244,8 @@ export class SwapsService {
       throw new BadRequestException(`Cannot approve a request with status: ${swap.status}`);
     }
 
-    // Execute the swap — reassign shifts
     if (swap.type === SwapType.SWAP) {
-      // Swap assignments between Staff A and Staff B
+      // Swap the two assignments
       await this.assignmentModel.update(
         { userId: swap.requesteeId },
         { where: { shiftId: swap.requesterShiftId, userId: swap.requesterId } },
@@ -227,7 +255,7 @@ export class SwapsService {
         { where: { shiftId: swap.requesteeShiftId, userId: swap.requesteeId } },
       );
     } else {
-      // DROP — remove Staff A, assign Staff B
+      // DROP — remove Staff A, add Staff B
       await this.assignmentModel.destroy({
         where: { shiftId: swap.requesterShiftId, userId: swap.requesterId },
       });
@@ -238,10 +266,14 @@ export class SwapsService {
     }
 
     await swap.update({ status: SwapStatus.APPROVED, managerId });
+
+    // Notify both parties
+    const notifyIds = [swap.requesterId];
+    if (swap.requesteeId) notifyIds.push(swap.requesteeId);
+    await this.notificationsService.notifySwapApproved(notifyIds, swapId);
+
     return this.findOne(swapId);
   }
-
-  // --- Manager rejects ---
 
   async managerReject(swapId: number, managerId: number, dto: RejectDto): Promise<SwapRequest> {
     const swap = await this.findOne(swapId);
@@ -250,16 +282,19 @@ export class SwapsService {
       throw new BadRequestException(`Cannot reject a request with status: ${swap.status}`);
     }
 
-    await swap.update({
-      status: SwapStatus.REJECTED,
-      managerId,
-      rejectionReason: dto.reason,
-    });
+    await swap.update({ status: SwapStatus.REJECTED, managerId, rejectionReason: dto.reason });
+
+    // Notify both parties
+    const notifyIds = [swap.requesterId];
+    if (swap.requesteeId) notifyIds.push(swap.requesteeId);
+    await this.notificationsService.notifySwapRejected(notifyIds, swapId, dto.reason);
+
     return this.findOne(swapId);
   }
 
-  // --- Called by shifts service when a shift is edited ---
-  // Cancels any pending swaps for that shift automatically
+  // -----------------------------------------------
+  // CALLED BY SHIFTS SERVICE ON EDIT
+  // -----------------------------------------------
 
   async cancelPendingSwapsForShift(shiftId: number): Promise<void> {
     await this.swapModel.update(
@@ -273,7 +308,9 @@ export class SwapsService {
     );
   }
 
-  // --- Cron job helper: expire open drop requests ---
+  // -----------------------------------------------
+  // EXPIRE OPEN DROPS — call this on a schedule
+  // -----------------------------------------------
 
   async expireDropRequests(): Promise<void> {
     await this.swapModel.update(

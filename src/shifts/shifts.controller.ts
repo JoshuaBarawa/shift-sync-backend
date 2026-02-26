@@ -1,4 +1,4 @@
-// shifts.controller.ts
+
 import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ShiftsService } from './shifts.service';
@@ -67,7 +67,7 @@ export class ShiftsController {
   }
 
   @Post(':id/assign')
-  @ApiOperation({ summary: 'Assign staff to a shift — Manager/Admin only' })
+  @ApiOperation({ summary: 'Assign staff to a shift — returns warning if approaching overtime' })
   assignStaff(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignStaffDto,
@@ -95,21 +95,32 @@ export class ShiftsController {
   // --- Any logged in user ---
 
   @Get()
-  @ApiOperation({ summary: 'Get all shifts — any logged in user' })
+  @ApiOperation({ summary: 'Get all shifts — optionally filter by location' })
   @ApiQuery({ name: 'locationId', required: false, type: Number })
   findAll(@Query('locationId') locationId?: number) {
     return this.shiftsService.findAll(locationId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single shift — any logged in user' })
+  @ApiOperation({ summary: 'Get a single shift with assignments' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.shiftsService.findOne(id);
   }
 
   @Get(':id/qualified-staff')
-  @ApiOperation({ summary: 'Find qualified available staff for a shift' })
+  @ApiOperation({ summary: 'Find qualified available staff for a shift — coverage finder' })
   findQualifiedStaff(@Param('id', ParseIntPipe) id: number) {
     return this.shiftsService.findQualifiedStaff(id);
+  }
+
+  @Get('hours/weekly')
+  @ApiOperation({ summary: 'Get weekly hours for a staff member — overtime dashboard' })
+  @ApiQuery({ name: 'userId', required: true, type: Number })
+  @ApiQuery({ name: 'weekStartDate', required: true, type: String, description: 'Monday of the week e.g. 2026-03-02' })
+  getWeeklyHours(
+    @Query('userId') userId: number,
+    @Query('weekStartDate') weekStartDate: string,
+  ) {
+    return this.shiftsService.getWeeklyHours(userId, weekStartDate);
   }
 }

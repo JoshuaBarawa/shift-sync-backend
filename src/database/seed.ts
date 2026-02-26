@@ -1,5 +1,3 @@
-// seed.ts
-// Run with: npx ts-node src/database/seed.ts
 
 import { Sequelize } from 'sequelize-typescript';
 import * as bcrypt from 'bcryptjs';
@@ -29,14 +27,11 @@ const sequelize = new Sequelize({
 
 async function seed() {
   await sequelize.authenticate();
-  await sequelize.sync({ force: true }); // drops and recreates all tables
+  await sequelize.sync({ force: true });
   console.log('✅ Database connected and synced');
 
   const password = await bcrypt.hash('password123', 10);
 
-  // -----------------------------------------------
-  // LOCATIONS
-  // -----------------------------------------------
   const [nairobiCBD, nairobiWestlands, capeTownVA, capeTownGardens] = await Location.bulkCreate([
     { name: 'Coastal Eats Nairobi CBD', address: 'Kimathi Street, Nairobi CBD, Kenya', timezone: 'Africa/Nairobi' },
     { name: 'Coastal Eats Nairobi Westlands', address: 'Westlands Road, Nairobi, Kenya', timezone: 'Africa/Nairobi' },
@@ -45,9 +40,6 @@ async function seed() {
   ]);
   console.log('Locations created');
 
-  // -----------------------------------------------
-  // USERS
-  // -----------------------------------------------
   const admin = await User.create({
     name: 'Super Admin',
     email: 'admin@coastaleats.com',
@@ -131,11 +123,8 @@ async function seed() {
 
   console.log('✅ Users created');
 
-  // -----------------------------------------------
-  // CERTIFICATIONS — who can work where
-  // -----------------------------------------------
   await UserLocation.bulkCreate([
-    // Nairobi staff
+
     { userId: bob.id, locationId: nairobiCBD.id },
     { userId: bob.id, locationId: nairobiWestlands.id },
     { userId: carol.id, locationId: nairobiCBD.id },
@@ -143,17 +132,14 @@ async function seed() {
     { userId: james.id, locationId: nairobiCBD.id },
     { userId: linda.id, locationId: nairobiWestlands.id },
 
-    // Cape Town staff
     { userId: sarah.id, locationId: capeTownVA.id },
     { userId: sarah.id, locationId: capeTownGardens.id },
     { userId: mike.id, locationId: capeTownVA.id },
     { userId: mike.id, locationId: capeTownGardens.id },
     { userId: tom.id, locationId: capeTownVA.id },
 
-    // Bob also certified in Cape Town — used for timezone tangle scenario
     { userId: bob.id, locationId: capeTownVA.id },
 
-    // Managers certified everywhere
     { userId: managerNairobi.id, locationId: nairobiCBD.id },
     { userId: managerNairobi.id, locationId: nairobiWestlands.id },
     { userId: managerCapeTown.id, locationId: capeTownVA.id },
@@ -161,15 +147,11 @@ async function seed() {
   ] as any);
   console.log('✅ Certifications created');
 
-  // -----------------------------------------------
-  // AVAILABILITY — recurring weekly
-  // All staff available Mon-Sat 08:00-22:00
-  // -----------------------------------------------
   const staffUsers = [bob, carol, james, sarah, mike, linda, tom];
   const availabilityRecords: any[] = [];
 
   for (const staff of staffUsers) {
-    for (let day = 1; day <= 6; day++) { // Monday=1 to Saturday=6
+    for (let day = 1; day <= 6; day++) {
       availabilityRecords.push({
         userId: staff.id,
         dayOfWeek: day,
@@ -178,7 +160,6 @@ async function seed() {
         isAvailable: true,
       });
     }
-    // Sunday unavailable for everyone except Bob and Mike
     if (staff.id === bob.id || staff.id === mike.id) {
       availabilityRecords.push({
         userId: staff.id,
@@ -192,23 +173,14 @@ async function seed() {
 
   await Availability.bulkCreate(availabilityRecords);
   console.log('✅ Availability created');
-
-  // -----------------------------------------------
-  // SHIFTS — 2 weeks of shifts
-  // Week 1: March 2-8 2026
-  // Week 2: March 9-15 2026
-  // -----------------------------------------------
-
-  // Helper to create shift date strings
   const dates = {
-    // Week 1
     mon1: '2026-03-02',
     tue1: '2026-03-03',
     wed1: '2026-03-04',
     thu1: '2026-03-05',
     fri1: '2026-03-06',
     sat1: '2026-03-07',
-    // Week 2
+
     mon2: '2026-03-09',
     tue2: '2026-03-10',
     wed2: '2026-03-11',
@@ -218,95 +190,55 @@ async function seed() {
   };
 
   const shifts = await Shift.bulkCreate([
-    // --- Nairobi CBD shifts ---
-    // Week 1
     { locationId: nairobiCBD.id, date: dates.mon1, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: nairobiCBD.id, date: dates.tue1, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: nairobiCBD.id, date: dates.fri1, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: true },
     { locationId: nairobiCBD.id, date: dates.sat1, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.SERVER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: true },
     { locationId: nairobiCBD.id, date: dates.mon1, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.LINE_COOK, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: false },
 
-    // Week 2
     { locationId: nairobiCBD.id, date: dates.mon2, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: nairobiCBD.id, date: dates.fri2, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: true },
     { locationId: nairobiCBD.id, date: dates.sat2, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.SERVER, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: true },
 
-    // --- Nairobi Westlands shifts ---
     { locationId: nairobiWestlands.id, date: dates.wed1, startTime: '10:00', endTime: '18:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: nairobiWestlands.id, date: dates.thu1, startTime: '10:00', endTime: '18:00', requiredSkill: RequiredSkill.LINE_COOK, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: nairobiWestlands.id, date: dates.sat1, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: true },
 
-    // --- Cape Town V&A shifts ---
     { locationId: capeTownVA.id, date: dates.mon1, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.SERVER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: false },
     { locationId: capeTownVA.id, date: dates.fri1, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: true },
     { locationId: capeTownVA.id, date: dates.sat1, startTime: '17:00', endTime: '23:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.PUBLISHED, isPremium: true },
     { locationId: capeTownVA.id, date: dates.mon2, startTime: '09:00', endTime: '17:00', requiredSkill: RequiredSkill.SERVER, headcount: 1, status: ShiftStatus.PUBLISHED, isPremium: false },
-
-    // --- Draft shift (not yet published) ---
     { locationId: nairobiCBD.id, date: dates.sat2, startTime: '09:00', endTime: '15:00', requiredSkill: RequiredSkill.BARTENDER, headcount: 2, status: ShiftStatus.DRAFT, isPremium: false },
   ] as any);
 
   console.log('✅ Shifts created');
 
-  // -----------------------------------------------
-  // ASSIGNMENTS
-  // -----------------------------------------------
+
   await ShiftAssignment.bulkCreate([
-    // Nairobi CBD Mon week1 (bartender x2) — Bob and Carol
+
     { shiftId: shifts[0].id, userId: bob.id },
     { shiftId: shifts[0].id, userId: carol.id },
-
-    // Nairobi CBD Tue week1 (bartender x1) — Bob
     { shiftId: shifts[1].id, userId: bob.id },
-
-    // Nairobi CBD Fri week1 premium (bartender x2) — Bob and Carol
     { shiftId: shifts[2].id, userId: bob.id },
     { shiftId: shifts[2].id, userId: carol.id },
-
-    // Nairobi CBD Sat week1 premium (server x2) — Carol and Sarah (Sarah certified at Cape Town but not here — intentional gap to show constraint)
     { shiftId: shifts[3].id, userId: carol.id },
-
-    // Nairobi CBD Mon week1 (line_cook x1) — James
     { shiftId: shifts[4].id, userId: james.id },
-
-    // Nairobi CBD Mon week2 (bartender x2) — Bob and Carol
     { shiftId: shifts[5].id, userId: bob.id },
     { shiftId: shifts[5].id, userId: carol.id },
-
-    // Nairobi CBD Fri week2 premium (bartender x2) — Bob
     { shiftId: shifts[6].id, userId: bob.id },
-
-    // Nairobi Westlands Wed (bartender x1) — Carol
     { shiftId: shifts[8].id, userId: carol.id },
-
-    // Nairobi Westlands Thu (line_cook x1) — Linda
     { shiftId: shifts[9].id, userId: linda.id },
-
-    // Nairobi Westlands Sat premium (bartender x1) — Carol
     { shiftId: shifts[10].id, userId: carol.id },
-
-    // Cape Town V&A Mon week1 (server x2) — Sarah and Mike
     { shiftId: shifts[11].id, userId: sarah.id },
     { shiftId: shifts[11].id, userId: mike.id },
-
-    // Cape Town V&A Fri premium (bartender x2) — Mike and Bob (Bob certified here too — timezone tangle)
     { shiftId: shifts[12].id, userId: mike.id },
     { shiftId: shifts[12].id, userId: bob.id },
-
-    // Cape Town V&A Sat premium (bartender x2) — Mike
     { shiftId: shifts[13].id, userId: mike.id },
-
-    // Cape Town V&A Mon week2 (server x1) — Sarah
     { shiftId: shifts[14].id, userId: sarah.id },
   ] as any);
   console.log('✅ Assignments created');
 
-  // -----------------------------------------------
-  // SWAP REQUESTS
-  // 1 pending swap, 1 open drop
-  // -----------------------------------------------
   await SwapRequest.bulkCreate([
-    // Bob wants to swap his Tue shift with Carol's Wed Westlands shift
     {
       type: SwapType.SWAP,
       status: SwapStatus.PENDING_ACCEPTANCE,
@@ -317,21 +249,17 @@ async function seed() {
       reason: 'Family commitment on Tuesday',
     },
 
-    // Carol dropping her Sat week2 Nairobi CBD server shift — anyone can pick it up
     {
       type: SwapType.DROP,
       status: SwapStatus.OPEN,
       requesterId: carol.id,
       requesterShiftId: shifts[7].id,
       reason: 'Going out of town',
-      expiresAt: new Date('2026-03-13T17:00:00'), // 24hrs before shift
+      expiresAt: new Date('2026-03-13T17:00:00'),
     },
   ] as any);
   console.log('✅ Swap requests created');
 
-  // -----------------------------------------------
-  // SUMMARY
-  // -----------------------------------------------
   console.log('\n🎉 Seed complete! Login credentials:\n');
   console.log('Admin:           admin@coastaleats.com   / password123');
   console.log('Manager Nairobi: alice@coastaleats.com   / password123');
@@ -348,6 +276,6 @@ async function seed() {
 }
 
 seed().catch((err) => {
-  console.error('❌ Seed failed:', err);
+  console.error('Seed failed:', err);
   process.exit(1);
 });

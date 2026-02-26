@@ -9,6 +9,10 @@ import { AvailabilityException } from '../availability/entities/availability-exc
 import { Shift } from '../shifts/entities/shift.entity';
 import { ShiftAssignment } from '../shifts/entities/shift-assignment.entity';
 import { SwapRequest } from '../swaps/entities/swap-request.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+
+
 
 export const databaseConfig = (config: ConfigService): SequelizeModuleOptions => ({
   dialect: 'mysql',
@@ -17,7 +21,7 @@ export const databaseConfig = (config: ConfigService): SequelizeModuleOptions =>
   username: config.getOrThrow<string>('DB_USERNAME'),
   password: config.getOrThrow<string>('DB_PASSWORD'),
   database: config.getOrThrow<string>('DB_NAME'),
-  models: [User, Location, UserLocation, Availability, AvailabilityException, Shift, ShiftAssignment, SwapRequest],
+  models: [User, Location, UserLocation, Availability, AvailabilityException, Shift, ShiftAssignment, SwapRequest, Notification, AuditLog],
   autoLoadModels: true,
   synchronize: true,
   logging: false,

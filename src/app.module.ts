@@ -9,6 +9,8 @@ import { LocationsModule } from './locations/locations.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { SwapsModule } from './swaps/swaps.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { SwapsModule } from './swaps/swaps.module';
     AvailabilityModule,
     ShiftsModule,
     SwapsModule,
+    NotificationsModule,
+    AuditModule
   ],
 })
 export class AppModule {}
