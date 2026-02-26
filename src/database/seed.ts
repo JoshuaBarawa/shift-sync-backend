@@ -27,7 +27,10 @@ const sequelize = new Sequelize({
 
 async function seed() {
   await sequelize.authenticate();
+  await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
   await sequelize.sync({ force: true });
+  await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+  
   console.log('Database connected and synced');
 
   const password = await bcrypt.hash('password123', 10);
