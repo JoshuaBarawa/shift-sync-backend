@@ -15,8 +15,6 @@ import { User, Role } from '../users/entities/user.entity';
 export class SwapsController {
   constructor(private readonly swapsService: SwapsService) {}
 
-  // --- Staff actions ---
-
   @Post()
   @ApiOperation({ summary: 'Create a swap or drop request — Staff only' })
   create(@CurrentUser() user: User, @Body() dto: CreateSwapDto) {
@@ -54,7 +52,6 @@ export class SwapsController {
     return this.swapsService.cancel(id, user.id);
   }
 
-  // --- Manager/Admin actions ---
 
   @Post(':id/approve')
   @ApiOperation({ summary: 'Manager approves a swap/drop — Manager/Admin only' })
@@ -78,13 +75,10 @@ export class SwapsController {
     return this.swapsService.managerReject(id, user.id, dto);
   }
 
-  // --- Anyone logged in ---
-
   @Get()
   @ApiOperation({ summary: 'Get swap requests — staff see their own, managers see all' })
   @ApiQuery({ name: 'status', required: false, enum: SwapStatus })
   findAll(@CurrentUser() user: User, @Query('status') status?: SwapStatus) {
-    // staff only see their own requests, managers/admins see everything
     const userId = user.role === Role.STAFF ? user.id : undefined;
     return this.swapsService.findAll(userId, status);
   }

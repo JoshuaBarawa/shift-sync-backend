@@ -41,9 +41,6 @@ export class ShiftsService {
     private readonly swapsService: SwapsService,
   ) {}
 
-  // -----------------------------------------------
-  // SHIFTS CRUD
-  // -----------------------------------------------
 
   async create(dto: CreateShiftDto, performedById: number): Promise<Shift> {
     const isPremium = this.checkIfPremium(dto.date, dto.startTime);
@@ -100,14 +97,12 @@ export class ShiftsService {
       { ...before, ...dto },
     );
 
-    // Notify assigned staff
     const assignments = await this.assignmentModel.findAll({ where: { shiftId: id } });
     const assignedUserIds = assignments.map((a) => a.userId);
     if (assignedUserIds.length > 0) {
       await this.notificationsService.notifyShiftEdited(assignedUserIds, id, shift.location?.name ?? 'your location', shift.date);
     }
 
-    // Auto-cancel pending swaps
     await this.swapsService.cancelPendingSwapsForShift(id);
 
     return this.findOne(id);
@@ -172,9 +167,6 @@ export class ShiftsService {
     return this.findOne(id);
   }
 
-  // -----------------------------------------------
-  // ASSIGN STAFF
-  // -----------------------------------------------
 
   async assignStaff(shiftId: number, dto: AssignStaffDto, performedById: number): Promise<{
     success: boolean;
@@ -186,7 +178,6 @@ export class ShiftsService {
     const user = await this.userModel.findOne({ where: { id: dto.userId, isActive: true } });
     if (!user) throw new NotFoundException(`User ${dto.userId} not found`);
 
-    // 1. Location certification
     const isCertified = await this.userLocationModel.findOne({
       where: { userId: dto.userId, locationId: shift.locationId },
     });
@@ -194,7 +185,6 @@ export class ShiftsService {
       return { success: false, message: `${user.name} is not certified to work at this location` };
     }
 
-    // 2. Skill match
     if (!user.skills?.includes(shift.requiredSkill as any)) {
       return {
         success: false,
@@ -202,13 +192,11 @@ export class ShiftsService {
       };
     }
 
-    // 3. Availability
     const availability = await this.availabilityService.isUserAvailable(dto.userId, shift.date, shift.startTime, shift.endTime);
     if (!availability.available) {
       return { success: false, message: availability.reason ?? 'Staff is not available' };
     }
 
-    // 4. Double booking
     const overlapping = await this.assignmentModel.findOne({
       include: [{ model: Shift, where: { date: shift.date, id: { [Op.ne]: shiftId }, status: { [Op.ne]: ShiftStatus.CANCELLED } } }],
       where: { userId: dto.userId },
@@ -217,37 +205,31 @@ export class ShiftsService {
       return { success: false, message: `${user.name} is already assigned to another shift on this date` };
     }
 
-    // 5. 10-hour rest rule
     const restViolation = await this.checkRestPeriod(dto.userId, shift.date, shift.startTime, shift.endTime, shiftId);
     if (restViolation) {
       return { success: false, message: restViolation };
     }
 
-    // 6. Headcount
     const currentAssignments = await this.assignmentModel.count({ where: { shiftId } });
     if (currentAssignments >= shift.headcount) {
       return { success: false, message: `Shift is already fully staffed (${shift.headcount} needed)` };
     }
 
-    // 7. Already assigned
     const alreadyAssigned = await this.assignmentModel.findOne({ where: { shiftId, userId: dto.userId } });
     if (alreadyAssigned) {
       return { success: false, message: `${user.name} is already assigned to this shift` };
     }
 
-    // 8. Daily hours
     const shiftHours = this.calcHours(shift.startTime, shift.endTime);
     if (shiftHours > DAILY_BLOCK_HOURS) {
       return { success: false, message: `This shift is ${shiftHours} hours long which exceeds the maximum ${DAILY_BLOCK_HOURS} hours per day` };
     }
 
-    // 9. Weekly overtime check
     const overtimeResult = await this.checkWeeklyHours(dto.userId, shift.date, shiftHours, user.name);
     if (overtimeResult.block) {
       return { success: false, message: overtimeResult.message };
     }
 
-    // All clear — assign
     const assignment = await this.assignmentModel.create({ shiftId, userId: dto.userId } as any);
 
     await this.auditService.log(
@@ -289,9 +271,6 @@ export class ShiftsService {
     await this.notificationsService.notifyShiftUnassigned(userId, shiftId, shift.location?.name ?? 'your location', shift.date);
   }
 
-  // -----------------------------------------------
-  // WEEKLY HOURS SUMMARY
-  // -----------------------------------------------
 
   async getWeeklyHours(userId: number, weekStartDate: string) {
     const weekStart = new Date(weekStartDate);
@@ -333,10 +312,6 @@ export class ShiftsService {
     };
   }
 
-  // -----------------------------------------------
-  // QUALIFIED STAFF FINDER
-  // -----------------------------------------------
-
   async findQualifiedStaff(shiftId: number) {
     const shift = await this.findOne(shiftId);
 
@@ -369,9 +344,6 @@ export class ShiftsService {
     return { available, unavailable };
   }
 
-  // -----------------------------------------------
-  // HELPERS
-  // -----------------------------------------------
 
   private async checkWeeklyHours(userId: number, date: string, newShiftHours: number, userName?: string) {
     const d = new Date(date);

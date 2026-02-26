@@ -72,7 +72,6 @@ export class SwapsService {
       return swap;
     }
 
-    // DROP
     const shiftDateTime = new Date(`${requesterShift.date}T${requesterShift.startTime}`);
     const hoursUntilShift = (shiftDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
     if (hoursUntilShift < 24) {

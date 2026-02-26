@@ -18,7 +18,7 @@ async function bootstrap() {
 
   app.enableCors();
 
-  // Swagger
+
   const config = new DocumentBuilder()
     .setTitle('ShiftSync API')
     .setDescription('Staff scheduling platform API')
