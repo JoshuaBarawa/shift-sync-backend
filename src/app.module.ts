@@ -10,6 +10,7 @@ import { ShiftsModule } from './shifts/shifts.module';
 import { SwapsModule } from './swaps/swaps.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuditModule } from './audit/audit.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { AuditModule } from './audit/audit.module';
     ShiftsModule,
     SwapsModule,
     NotificationsModule,
-    AuditModule
+    AuditModule,
+    HealthModule
   ],
 })
 export class AppModule {}
