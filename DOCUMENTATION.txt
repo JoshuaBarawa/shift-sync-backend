@@ -1,0 +1,197 @@
+ShiftSync — Project Documentation
+==================================
+
+Project: Multi-Location Staff Scheduling Platform
+Company: Coastal Eats
+Developer: Joshua Barawa
+Stack: NestJS + Sequelize + MySQL (Backend) · React + Vite (Frontend)
+
+
+HOW TO LOG IN
+--------------
+
+Role        Email                           Password
+Admin       admin@coastaleats.com           password123
+Manager     alice@coastaleats.com           password123
+Manager     david@coastaleats.com           password123
+Staff       bob@coastaleats.com             password123
+Staff       carol@coastaleats.com           password123
+Staff       mike@coastaleats.com            password123
+
+Run "npx ts-node src/database/seed.ts" to populate the database with test data before logging in.
+
+
+LIVE URLS
+----------
+
+Frontend:       https://coastal-eats.netlify.app/login
+Backend API:    https://coastal-eats.onrender.com/api
+Swagger Docs:   https://coastal-eats.onrender.com/api/docs
+
+
+ARCHITECTURE OVERVIEW
+----------------------
+
+Backend Modules:
+
+Module              Responsibility
+Auth                JWT login, token validation, current user
+Users               User CRUD, role management, skill assignment
+Locations           Location management, staff certification (UserLocation junction)
+Availability        Recurring weekly availability + one-off exceptions per staff member
+Shifts              Shift CRUD, constraint engine, staff assignment, publish/unpublish
+Swaps               Swap and drop request workflow, manager approval
+Notifications       In-app notification persistence, unread count, mark as read
+Audit               Immutable log of every write operation with before/after state
+Health              Keep-alive endpoint + cron to prevent Render from sleeping
+
+
+Constraint Engine (8 checks on every assignment)
+-------------------------------------------------
+
+When a manager assigns a staff member to a shift, the system runs these checks
+in order and blocks on the first failure with a clear explanation:
+
+1. Location certification  — Is the staff member certified to work at this location?
+2. Skill match             — Does the staff member have the required skill for this shift?
+3. Availability            — Is the staff member available during these hours on this day?
+4. Double booking          — Is the staff member already assigned to another shift on this date?
+5. 10-hour rest rule       — Is there at least 10 hours between the end of their previous/next shift?
+6. Headcount               — Is the shift already fully staffed?
+7. Already assigned        — Is this staff member already on this shift?
+8. Daily hours             — Does this shift exceed 12 hours? (hard block)
+
+After all 8 checks pass, a weekly overtime check runs:
+  - 35+ hours: assignment proceeds with a warning
+  - 40+ hours: hard block, assignment rejected
+
+
+DECISIONS MADE ON INTENTIONAL AMBIGUITIES
+-------------------------------------------
+
+1. What happens to historical data when a staff member is de-certified from a location?
+
+Decision:
+Historical assignments are preserved. De-certification only affects future assignments.
+If Bob worked at Location A last week and is de-certified today, last week's shift records
+remain intact. The constraint engine only checks current certification status at the time
+of assignment.
+
+Reason:
+Deleting or invalidating historical data would corrupt the audit trail and make
+payroll/reporting unreliable. Past assignments were valid when they were made.
+
+
+2. How should "desired hours" interact with availability windows?
+
+Decision:
+They are treated as separate concepts. Availability windows define when a staff member
+can work (hard constraint enforced by the system). Desired hours are a soft preference
+visible to managers on the staff detail view as a weekly hours target. The system does
+not auto-reject assignments that exceed desired hours — it only surfaces the information.
+
+Reason:
+Desired hours are a scheduling aid, not a contract. Enforcing them as hard constraints
+would create too many edge cases (e.g., staff who set low desired hours but accept
+overtime voluntarily).
+
+
+3. When calculating consecutive days, does a 1-hour shift count the same as an 11-hour shift?
+
+Decision:
+Yes. Any shift on a given calendar day counts as a worked day for consecutive day
+tracking purposes, regardless of duration.
+
+Reason:
+Labor law consecutive day rules are based on calendar days worked, not hours worked.
+A 1-hour shift still requires the employee to commute, prepare, and be present —
+it counts as a day worked.
+
+
+4. If a shift is edited after swap approval but before it occurs, what should happen?
+
+Decision:
+If a manager edits a shift that has an approved swap, the system automatically cancels
+the swap and notifies all parties. The assignment reverts to the state before the swap
+was approved. The manager must re-assign and re-publish.
+
+Reason:
+An approved swap is an agreement between two staff members based on specific shift
+details (time, location, date). Editing the shift changes the terms of that agreement.
+Silently keeping the swap active would mean a staff member is bound to a shift they
+never agreed to.
+
+Implementation:
+cancelPendingSwapsForShift() is called in shifts.service.ts on every update() operation.
+It cancels swaps with status pending_acceptance, open, or pending_approval.
+
+
+5. How should the system handle a location that spans a timezone boundary?
+
+Decision:
+Each location has a single canonical timezone stored in the database (location.timezone).
+All shift times for that location are displayed and interpreted in that timezone. A staff
+member certified at multiple locations sees each shift in the timezone of that shift's location.
+
+Reason:
+A restaurant operates on one local time regardless of where the state line sits. Assigning
+a timezone per location is the simplest correct model. A location near a state line should
+be assigned the timezone where the building physically sits.
+
+Known limitation:
+The current implementation stores timezone as a string but does not yet perform full UTC
+conversion in the frontend. Times are stored as entered and displayed as entered. Full
+timezone conversion is documented as a known gap below.
+
+
+KNOWN LIMITATIONS
+------------------
+
+Area                    Limitation                                                          Impact
+Real-time updates       WebSockets not implemented. Schedule changes require a page         Medium
+                        refresh to reflect.
+Timezone conversion     Shift times are stored and displayed in the entered timezone,       Low
+                        not converted to UTC internally.
+Concurrent assignment   No database-level locking. Two managers assigning the same          Low probability,
+                        person simultaneously could theoretically both succeed.             medium impact
+Email notifications     In-app only. No email delivery implemented.                         Low
+Fairness analytics      Premium shift fairness score UI is not fully implemented.           Low
+6th/7th consecutive     Warning logic not yet implemented. Overtime blocking works.         Medium
+day warning
+
+
+ASSUMPTIONS MADE
+-----------------
+
+- A "week" for overtime calculation purposes runs Monday to Sunday
+- Overnight shifts (e.g., 11pm to 3am) are treated as a single shift belonging to the start date
+- Staff availability windows apply to local time at the location of the shift
+- Manager approval is required for all swaps and drops, including drop pickups
+- The 48-hour edit cutoff for published schedules is not enforced in the current build —
+  managers can edit at any time (flagged as a known gap)
+- "Desired hours" is not currently a field on the user model but is planned
+
+
+SEED DATA COVERAGE
+-------------------
+
+The seed creates:
+- 4 locations (2 in Nairobi, 2 in Cape Town — representing 2 timezone regions)
+- 1 admin, 2 managers, 7 staff members
+- Staff with varied skills (bartender, line_cook, server, host, busser, dishwasher)
+- Bob is certified at both Nairobi and Cape Town locations (timezone tangle scenario)
+- 2 weeks of shifts (March 2-15, 2026), most published and assigned
+- 1 pending swap (Bob and Carol)
+- 1 open drop request (Carol dropping a Saturday shift)
+- Pre-existing overtime scenario: one staff member approaching 35-hour threshold
+
+
+API DOCUMENTATION
+------------------
+
+Full interactive API docs available at /api/docs (Swagger UI).
+
+All endpoints require a Bearer token except POST /auth/login.
+
+Header format:
+Authorization: Bearer <your_token>
